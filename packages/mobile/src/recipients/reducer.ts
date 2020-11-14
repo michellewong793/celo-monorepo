@@ -1,5 +1,5 @@
 import { Actions, ActionTypes } from 'src/recipients/actions'
-import { NumberToRecipient } from 'src/recipients/recipient'
+import { AddressToProfile, NumberToRecipient } from 'src/recipients/recipient'
 import { RehydrateAction } from 'src/redux/persist-helper'
 import { RootState } from 'src/redux/reducers'
 
@@ -9,10 +9,12 @@ export interface State {
   // Think of contacts as raw data and recipients as filtered data
   // No relation to recent recipients, which is in /send/reducer.ts
   recipientCache: NumberToRecipient
+  permissionedRecipients: AddressToProfile
 }
 
 const initialState = {
   recipientCache: {},
+  permissionedRecipients: {},
 }
 
 export const recipientsReducer = (
@@ -24,6 +26,11 @@ export const recipientsReducer = (
       return {
         ...state,
         recipientCache: action.recipients,
+      }
+    case Actions.ADD_PROFILE:
+      return {
+        ...state,
+        permissionedRecipients: { ...state.permissionedRecipients, ...action.profile },
       }
     default:
       return state

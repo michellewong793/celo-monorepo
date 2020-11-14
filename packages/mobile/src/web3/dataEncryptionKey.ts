@@ -6,24 +6,26 @@
 
 import { OdisUtils } from '@celo/contractkit'
 import { AuthSigner } from '@celo/contractkit/lib/identity/odis/query'
+import { UnlockableWallet } from '@celo/contractkit/lib/wallets/wallet'
 import { AccountsWrapper } from '@celo/contractkit/lib/wrappers/Accounts'
 import { ensureLeading0x, eqAddress, hexToBuffer } from '@celo/utils/src/address'
 import { CURRENCY_ENUM } from '@celo/utils/src/currencies'
 import { compressedPubKey, deriveDek } from '@celo/utils/src/dataEncryptionKey'
 import * as bip39 from 'react-native-bip39'
 import { call, put, select } from 'redux-saga/effects'
-import { addMetadataClaim, uploadName } from 'src/account/profileInfo'
+import { uploadProfileInfo } from 'src/account/profileInfo'
 import { OnboardingEvents } from 'src/analytics/Events'
 import ValoraAnalytics from 'src/analytics/ValoraAnalytics'
 import { ErrorMessages } from 'src/app/ErrorMessages'
 import { features } from 'src/flags'
 import { FetchDataEncryptionKeyAction, updateAddressDekMap } from 'src/identity/actions'
+import { getPasswordSaga } from 'src/pincode/authentication'
 import { getCurrencyAddress } from 'src/tokens/saga'
 import { sendTransaction } from 'src/transactions/send'
 import { newTransactionContext } from 'src/transactions/types'
 import Logger from 'src/utils/Logger'
 import { registerDataEncryptionKey, setDataEncryptionKey } from 'src/web3/actions'
-import { getContractKit, getContractKitAsync } from 'src/web3/contracts'
+import { getContractKit, getContractKitAsync, getWallet } from 'src/web3/contracts'
 import { getConnectedUnlockedAccount } from 'src/web3/saga'
 import { dataEncryptionKeySelector, isDekRegisteredSelector } from 'src/web3/selectors'
 import { estimateGas } from 'src/web3/utils'
@@ -66,6 +68,7 @@ export function* registerAccountDek(account: string) {
   try {
     const isAlreadyRegistered = yield select(isDekRegisteredSelector)
     if (isAlreadyRegistered) {
+      yield call(uploadProfileInfo)
       return
     }
     ValoraAnalytics.track(OnboardingEvents.account_dek_register_start)
@@ -112,8 +115,22 @@ export function* registerAccountDek(account: string) {
     ValoraAnalytics.track(OnboardingEvents.account_dek_register_complete, {
       newRegistration: true,
     })
-    yield call(addMetadataClaim, contractKit)
-    yield call(uploadName, contractKit)
+
+    // yield call([contractKit, "addAccount"], privateDataKey)
+    // TODO: add DEK to wallet for users that have already registered DEK
+    const wallet: UnlockableWallet = yield call(getWallet)
+    const password: string = yield call(getPasswordSaga, account, false, true)
+    try {
+      yield call([wallet, wallet.addAccount], privateDataKey, password)
+    } catch (e) {
+      if (e === ErrorMessages.GETH_ACCOUNT_ALREADY_EXISTS) {
+        Logger.warn(TAG + '@registerAccountDek', 'Attempted to import same DEK account')
+      } else {
+        Logger.error(TAG + '@registerAccountDek', 'Error importing raw key')
+        throw e
+      }
+    }
+    yield call(uploadProfileInfo)
   } catch (error) {
     // DEK registration failures are not considered fatal. Swallow the error and allow calling saga to proceed.
     // Registration will be re-attempted on next payment send

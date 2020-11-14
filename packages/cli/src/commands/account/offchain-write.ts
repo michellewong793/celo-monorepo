@@ -20,7 +20,7 @@ export default class OffchainWrite extends OffchainDataCommand {
   async run() {
     const res = this.parse(OffchainWrite)
     this.kit.defaultAccount = res.flags.from
-    const nameSchema = new PublicNameAccessor(this.offchainDataWrapper, res.flags.from)
+    const nameSchema = new PublicNameAccessor(this.offchainDataWrapper)
     await nameSchema.write({ name: res.flags.name })
   }
 }

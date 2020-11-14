@@ -5,10 +5,12 @@ import { PrivateNameAccessor } from '@celo/contractkit/lib/identity/offchain/acc
 import { LocalStorageWriter } from '@celo/contractkit/lib/identity/offchain/storage-writers'
 import { AccountsWrapper } from '@celo/contractkit/lib/wrappers/Accounts'
 import { NativeSigner } from '@celo/utils/lib/signatureUtils'
-import { call, select } from 'redux-saga/effects'
-import { nameSelector } from 'src/account/selectors'
+import { call, put, select } from 'redux-saga/effects'
+import { uploadProfile } from 'src/account/actions'
+import { isProfileUploadedSelector, nameSelector } from 'src/account/selectors'
 import { sendTransaction } from 'src/transactions/send'
 import { newTransactionContext } from 'src/transactions/types'
+import Logger from 'src/utils/Logger'
 import { getContractKit } from 'src/web3/contracts'
 import { currentAccountSelector } from 'src/web3/selectors'
 
@@ -16,9 +18,16 @@ const TAG = 'account/profileInfo'
 const BUCKET_URL = 'https://storage.googleapis.com/isabellewei-test/'
 
 class ValoraStorageWriter extends LocalStorageWriter {
+  private readonly account: string
+
+  constructor(readonly local: string, bucket: string) {
+    super(local)
+    this.account = bucket
+  }
+
   // TEMP for testing
   async write(data: Buffer, dataPath: string): Promise<void> {
-    const response = await fetch(`${BUCKET_URL}/${dataPath}`, {
+    const response = await fetch(`${BUCKET_URL}${this.account}${dataPath}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/octet-stream',
@@ -32,31 +41,50 @@ class ValoraStorageWriter extends LocalStorageWriter {
   }
 }
 
-export function* addMetadataClaim(contractKit: any) {
-  const address = yield select(currentAccountSelector)
-  // const contractKit = yield call(getContractKit)
+export function* uploadProfileInfo() {
+  const isAlreadyUploaded = yield select(isProfileUploadedSelector)
+  if (isAlreadyUploaded) {
+    return
+  }
+  yield call(addMetadataClaim)
+  yield call(uploadName)
 
-  const metadata = IdentityMetadataWrapper.fromEmpty(address)
-  yield call(
-    metadata.addClaim,
-    createStorageClaim(BUCKET_URL),
-    NativeSigner(contractKit.web3.eth.sign, address)
-  )
+  yield put(uploadProfile())
+  // TODO: add analytics
+}
 
-  yield call(writeToGCPBucket, metadata.toString(), `${address}/metadata.json`)
-
-  const accountsWrapper: AccountsWrapper = yield call([
-    contractKit.contracts,
-    contractKit.contracts.getAccounts,
-  ])
-  const setAccountTx = accountsWrapper.setMetadataURL(`${BUCKET_URL}/${address}/metadata.json`)
-  const context = newTransactionContext(TAG, 'Set metadata URL')
-  yield call(sendTransaction, setAccountTx.txo, address, context)
+export function* addMetadataClaim() {
+  try {
+    const contractKit = yield call(getContractKit)
+    const account = yield select(currentAccountSelector)
+    console.log('adding claim')
+    const metadata = IdentityMetadataWrapper.fromEmpty(account)
+    console.log(metadata)
+    yield call(
+      [metadata, 'addClaim'],
+      createStorageClaim(BUCKET_URL),
+      NativeSigner(contractKit.web3.eth.sign, account)
+    )
+    console.log('added storage claim to chain')
+    yield call(writeToGCPBucket, metadata.toString(), `${account}/metadata.json`)
+    console.log('uploaded metadata.json')
+    const accountsWrapper: AccountsWrapper = yield call([
+      contractKit.contracts,
+      contractKit.contracts.getAccounts,
+    ])
+    const setAccountTx = accountsWrapper.setMetadataURL(`${BUCKET_URL}${account}/metadata.json`)
+    const context = newTransactionContext(TAG, 'Set metadata URL')
+    yield call(sendTransaction, setAccountTx.txo, account, context)
+    console.log('added metadata claim to chain')
+  } catch (error) {
+    Logger.error(`${TAG}/addMetadataClaim`, 'Could not add metadata claim', error)
+    throw error
+  }
 }
 
 // TEMP for testing
 async function writeToGCPBucket(data: string, dataPath: string) {
-  const response = await fetch(`${BUCKET_URL}/${dataPath}`, {
+  const response = await fetch(`${BUCKET_URL}${dataPath}`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
@@ -69,31 +97,38 @@ async function writeToGCPBucket(data: string, dataPath: string) {
   }
 }
 
-export function* uploadName(contractKit: any) {
-  const address = yield select(currentAccountSelector)
+export function* uploadName() {
+  const contractKit = yield call(getContractKit)
+  const account = yield select(currentAccountSelector)
   const name = yield select(nameSelector)
 
-  const storageWriter = new ValoraStorageWriter(`/tmp/${address}`)
-  const offchainWrapper = new OffchainDataWrapper(address, contractKit)
+  console.log('uploading name')
+  const storageWriter = new ValoraStorageWriter(`/tmp/${account}`, account)
+  const offchainWrapper = new OffchainDataWrapper(account, contractKit)
   offchainWrapper.storageWriter = storageWriter
-  const nameAccessor = new PrivateNameAccessor(offchainWrapper, address)
-  const writeError = yield call(nameAccessor.write, { name }, [])
+  const nameAccessor = new PrivateNameAccessor(offchainWrapper, account)
+  console.log('writing name')
+  console.log(account)
+  const writeError = yield call([nameAccessor, 'write'], { name }, [])
   if (writeError) {
     console.log(writeError)
     throw Error('Unable to write data')
   }
 }
 
+// this function gives permission to the recipient to view the user's profile info
 export function* uploadSymmetricKeys(recipientAddresses: string[]) {
-  // TODO: check if key for user already exists
-  const address = yield select(currentAccountSelector)
+  // TODO: check if key for user already exists, skip if yes
+  const account = yield select(currentAccountSelector)
   const contractKit = yield call(getContractKit)
 
-  const storageWriter = new ValoraStorageWriter(`/tmp/${address}`)
-  const offchainWrapper = new OffchainDataWrapper(address, contractKit)
+  console.log('uploading keys')
+  const storageWriter = new ValoraStorageWriter(`/tmp/${account}`, account)
+  const offchainWrapper = new OffchainDataWrapper(account, contractKit)
   offchainWrapper.storageWriter = storageWriter
-  const nameAccessor = new PrivateNameAccessor(offchainWrapper, address)
-  const writeError = yield call(nameAccessor.writeKeys, { name }, recipientAddresses)
+  const nameAccessor = new PrivateNameAccessor(offchainWrapper, account)
+  console.log('writing keys')
+  const writeError = yield call([nameAccessor, 'writeKeys'], { name }, recipientAddresses)
   if (writeError) {
     console.log(writeError)
     throw Error('Unable to write keys')

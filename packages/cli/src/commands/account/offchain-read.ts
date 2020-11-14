@@ -22,7 +22,7 @@ export default class OffchainRead extends BaseCommand {
     const res = this.parse(OffchainRead)
     this.kit.defaultAccount = res.flags.from
     const provider = new OffchainDataWrapper(res.flags.from, this.kit)
-    const nameApplication = new PublicNameAccessor(provider, res.flags.from)
+    const nameApplication = new PublicNameAccessor(provider)
     const data = await nameApplication.read(res.flags.from)
     console.log(data)
   }

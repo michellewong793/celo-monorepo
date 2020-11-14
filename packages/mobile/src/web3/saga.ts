@@ -1,4 +1,3 @@
-import { RpcWalletErrors } from '@celo/contractkit/lib/wallets/rpc-wallet'
 import { UnlockableWallet } from '@celo/contractkit/lib/wallets/wallet'
 import { generateKeys, generateMnemonic, MnemonicStrength } from '@celo/utils/src/account'
 import { privateKeyToAddress } from '@celo/utils/src/address'
@@ -219,7 +218,7 @@ export function* assignAccountFromPrivateKey(privateKey: string, mnemonic: strin
     try {
       yield call([wallet, wallet.addAccount], privateKey, password)
     } catch (e) {
-      if (e === RpcWalletErrors.AccountAlreadyExists) {
+      if (e === ErrorMessages.GETH_ACCOUNT_ALREADY_EXISTS) {
         Logger.warn(TAG + '@assignAccountFromPrivateKey', 'Attempted to import same account')
       } else {
         Logger.error(TAG + '@assignAccountFromPrivateKey', 'Error importing raw key')

@@ -54,8 +54,19 @@ export interface RecipientWithAddress extends IRecipient {
   address: string
 }
 
+export interface RecipientWithProfile extends IRecipient {
+  address: string
+  thumbnailPath?: string
+  storageURL: string
+  symmetricKey: string
+}
+
 export interface NumberToRecipient {
   [number: string]: RecipientWithContact
+}
+
+export interface AddressToProfile {
+  [address: string]: RecipientWithProfile
 }
 
 interface DisplayNameProps {
