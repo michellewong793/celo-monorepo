@@ -3,8 +3,6 @@ import * as fs from 'fs'
 import { join, parse } from 'path'
 import { resolvePath } from './utils'
 
-// const { writeFile, mkdir } = promises
-
 export abstract class StorageWriter {
   abstract write(_data: Buffer, _dataPath: string): Promise<void>
 }

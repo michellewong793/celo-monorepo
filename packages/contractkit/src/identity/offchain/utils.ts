@@ -34,7 +34,7 @@ function getCiphertextLabel(
   const label = createHmac('blake2s256', sharedSecret)
     .update(Buffer.concat([senderPublicKeyBuffer, receiverPublicKeyBuffer, Buffer.from(path)]))
     .digest('hex')
-  return join(sep, senderPublicKey, 'ciphertexts', label)
+  return join(sep, 'ciphertexts', label)
 }
 
 // Assumes that the wallet has the dataEncryptionKey of wrapper.self available

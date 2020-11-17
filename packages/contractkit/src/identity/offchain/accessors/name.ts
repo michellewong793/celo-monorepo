@@ -10,12 +10,12 @@ export type NameType = t.TypeOf<typeof NameSchema>
 
 export class PublicNameAccessor extends PublicSimpleAccessor<NameType> {
   constructor(readonly wrapper: OffchainDataWrapper) {
-    super(wrapper, NameSchema, '$/account/name')
+    super(wrapper, NameSchema, '/account/name')
   }
 }
 
 export class PrivateNameAccessor extends PrivateSimpleAccessor<NameType> {
   constructor(readonly wrapper: OffchainDataWrapper) {
-    super(wrapper, NameSchema, '$/account/name')
+    super(wrapper, NameSchema, '/account/name')
   }
 }

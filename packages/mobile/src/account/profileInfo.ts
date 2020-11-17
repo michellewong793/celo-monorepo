@@ -106,7 +106,7 @@ export function* uploadName() {
   const storageWriter = new ValoraStorageWriter(`/tmp/${account}`, account)
   const offchainWrapper = new OffchainDataWrapper(account, contractKit)
   offchainWrapper.storageWriter = storageWriter
-  const nameAccessor = new PrivateNameAccessor(offchainWrapper, account)
+  const nameAccessor = new PrivateNameAccessor(offchainWrapper)
   console.log('writing name')
   console.log(account)
   const writeError = yield call([nameAccessor, 'write'], { name }, [])
@@ -126,7 +126,7 @@ export function* uploadSymmetricKeys(recipientAddresses: string[]) {
   const storageWriter = new ValoraStorageWriter(`/tmp/${account}`, account)
   const offchainWrapper = new OffchainDataWrapper(account, contractKit)
   offchainWrapper.storageWriter = storageWriter
-  const nameAccessor = new PrivateNameAccessor(offchainWrapper, account)
+  const nameAccessor = new PrivateNameAccessor(offchainWrapper)
   console.log('writing keys')
   const writeError = yield call([nameAccessor, 'writeKeys'], { name }, recipientAddresses)
   if (writeError) {

@@ -432,6 +432,10 @@ export const v6Schema = {
 
 export const v7Schema = {
   ...v6Schema,
+  account: {
+    ...v6Schema.account,
+    isProfileUploaded: false,
+  },
   identity: {
     ...v6Schema.identity,
     feelessAttestationCodes: [],
@@ -467,6 +471,10 @@ export const v7Schema = {
       },
     },
     feelessLastRevealAttempt: null,
+  },
+  recipients: {
+    ...v6Schema.recipients,
+    permissionedRecipients: {},
   },
 }
 

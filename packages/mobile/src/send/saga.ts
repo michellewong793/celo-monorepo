@@ -137,7 +137,6 @@ function* sendPayment(
     // Ensure comment encryption is possible by first ensuring the account's DEK has been registered
     // For most users, this happens during redeem invite or verification. This is a fallback.
     yield call(registerAccountDek, ownAddress)
-
     const encryptedComment = yield call(encryptComment, comment, recipientAddress, ownAddress, true)
 
     const context = newTransactionContext(TAG, 'Send payment')
