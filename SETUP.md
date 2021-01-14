@@ -161,6 +161,7 @@ cd celo-monorepo
 yarn
 # build all packages
 yarn build --ignore docs
+yarn postinstall
 ```
 
 > Note that if you do your checkouts with a different method, Yarn will fail if
